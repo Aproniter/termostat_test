@@ -20,3 +20,6 @@ databases 0.6.2
 
 **API**
 Подробная документация доступна по адресу localhost/docs/
+
+**Документация Yandex Smart Home**
+https://yandex.ru/dev/dialogs/smart-home/doc/about.html
