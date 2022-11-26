@@ -60,11 +60,18 @@ async def convert_to_yandex(data: list[schemas.Device], response_by_action: bool
     return devices_to_response
 
 
-async def command_from_yandex(devices):
+async def command_from_yandex(devices, user_id):
     """Парсинг запроса и выполнения команд от Yandex Smart Home"""
     for device in devices:
         try:
             send_command_to_device(device)
+            query = models.requests.insert().values(
+                user_id=user_id,
+                device_id=device['id'],
+                status=True,
+                created=datetime.now()
+            )
+            await database.execute(query)
             for i in device['capabilities']:
                 i['state'] = {
                     'instance': i['state']['instance'],
@@ -72,7 +79,15 @@ async def command_from_yandex(devices):
                         "status": "DONE"
                     }
                 }
-        except SendToDeviceException:
+        except SendToDeviceException as e:
+            query = models.requests.insert().values(
+                user_id=user_id,
+                device_id=device['id'],
+                status=False,
+                error=e,
+                created=datetime.now()
+            )
+            await database.execute(query)
             for i in device['capabilities']:
                 i['state'] = {
                     'instance': i['state']['instance'],
@@ -108,7 +123,7 @@ async def create_user_token(user_id: int):
             expires=expires, 
             user_id=user_id
         )
-        # .returning(models.tokens.c.token, models.tokens.c.expires)
+        # .returning(models.tokens.c.token, models.tokens.c.expires) # Not SQLite
     )
     await database.execute(query)
     return {'access_token': token, 'token_type': 'bearer', 'expires': expires}

@@ -100,7 +100,7 @@ async def edit_user_devices_state_from_yandex(
     current_user: schemas.User = Depends(utils.get_current_user),
 ):
     """Изменить состояние устройства текущего пользователя из Yandex Smart Home"""
-    devices = await utils.command_from_yandex(payload.dict()['payload']['devices'])
+    devices = await utils.command_from_yandex(payload.dict()['payload']['devices'], current_user.id)
     response = {
         'request_id': str(random.randint(10000000, 99999999)),
         'payload': {

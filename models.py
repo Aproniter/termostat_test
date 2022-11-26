@@ -20,6 +20,7 @@ users = Table(
     Column('password', String),
 )
 
+
 tokens = Table(
     'tokens',
     metadata,
@@ -34,6 +35,7 @@ tokens = Table(
     Column('expires', DateTime()),
     Column('user_id', ForeignKey('users.id')),
 )
+
 
 devices = Table(
     'devices',
@@ -57,4 +59,16 @@ devices = Table(
     Column('thermostat', Enum(DeviceMode), default=DeviceMode.cool),
     Column('controls_locked', Boolean, default=False),
     Column('owner_id', Integer, ForeignKey('users.id')),
+)
+
+
+requests = Table(
+    'requests',
+    metadata,
+    Column('id', Integer, primary_key=True, index=True),
+    Column('status', Boolean),
+    Column('error', String, nullable=True),
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('device_id', Integer, ForeignKey('device.id')),
+    Column('created', DateTime()),
 )
