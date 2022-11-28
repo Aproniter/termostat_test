@@ -16,7 +16,7 @@ users = Table(
     'users',
     metadata,
     Column('id', Integer, primary_key=True, index=True),
-    Column('email', String, unique=True, index=True),
+    Column('username', String, unique=True, index=True),
     Column('password', String),
 )
 
@@ -69,6 +69,6 @@ requests = Table(
     Column('status', Boolean),
     Column('error', String, nullable=True),
     Column('user_id', Integer, ForeignKey('users.id')),
-    Column('device_id', Integer, ForeignKey('device.id')),
+    Column('device_id', Integer, ForeignKey('devices.id')),
     Column('created', DateTime()),
 )

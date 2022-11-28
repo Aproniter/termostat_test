@@ -4,14 +4,31 @@ from typing import List
 from fastapi import FastAPI
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 
-import models, schemas, utils
+import models, schemas, utils, fixtures
 
 from db import database, metadata, engine
 
 
 app = FastAPI()
 
+origins = [
+    "http://localhost",
+    "http://127.0.0.1",    
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 metadata.create_all(engine)
 
@@ -19,6 +36,8 @@ metadata.create_all(engine)
 @app.on_event('startup')
 async def startup():
     await database.connect()
+    if not await database.fetch_all(models.users.select()):
+        await fixtures.create_test_data_to_db()
 
 
 @app.on_event('shutdown')
@@ -29,9 +48,9 @@ async def shutdown():
 @app.post('/auth', response_model=schemas.Token)
 async def auth(form_data: OAuth2PasswordRequestForm = Depends()):
     """Аутентификация пользователя"""
-    user = await utils.get_user_by_email(email=form_data.username)
+    user = await utils.get_user_by_username(username=form_data.username)
     if not user:
-        raise HTTPException(status_code=400, detail='Проверьте email или пароль')
+        raise HTTPException(status_code=400, detail='Проверьте username или пароль')
     if not utils.validate_password(
         password=form_data.password, hashed_password=user['password']
     ):
@@ -66,7 +85,7 @@ async def get_all_users(offset: int = 0, limit: int = 10):
     return await database.fetch_all(query)
 
 
-@app.post('/users/devices/', response_model=schemas.Device)
+@app.post('/devices/', response_model=schemas.Device)
 async def create_device_for_user(device: schemas.DeviceCreate, current_user: schemas.User = Depends(utils.get_current_user)):
     """Создать устройство для текущего пользователя"""
     device = device.dict()
@@ -74,10 +93,10 @@ async def create_device_for_user(device: schemas.DeviceCreate, current_user: sch
     return {**device, 'id': db_id, 'owner_id': current_user.id, 'serial_number': sn}
 
 
-@app.get('/users/devices/', response_model=List[schemas.Device])
+@app.get('/devices/')# response_model=List[schemas.Device]
 async def get_all_user_devices(current_user: schemas.User = Depends(utils.get_current_user)):
     """Получить все устройства текущего пользователя"""
-    return await utils.get_all_user_devices(current_user.id)
+    return {'results': {'items': await utils.get_all_user_devices(current_user.id)}}
 
 
 @app.get('/v1.0/user/devices', response_model=schemas.ResponseToYandex)
@@ -111,7 +130,7 @@ async def edit_user_devices_state_from_yandex(
     return response
 
 
-@app.post('/users/devices/edit_stat/', response_model=schemas.DeviceEdit)
+@app.post('/devices/edit_stat/', response_model=schemas.DeviceEdit)
 async def edit_stat_device_for_user(device: schemas.DeviceEdit, current_user: schemas.User = Depends(utils.get_current_user)):
     """Изменить настройки устройства"""
     device = device.dict()

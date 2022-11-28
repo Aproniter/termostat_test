@@ -24,6 +24,13 @@ def hash_password(password: str):
 def validate_password(password: str, hashed_password: str):
     return hash_password(password) == hashed_password
 
+def facked_edit_temperature(temp_set, temp_now):
+    delta = abs(temp_now - temp_set)
+    delta = delta - random.randint(0, delta) if delta != 1 else 1
+    if temp_set > temp_now:
+        return temp_now + delta
+    elif temp_set < temp_now:
+        return temp_now - delta
 
 async def send_command_to_device(device):
     query = (
@@ -129,8 +136,8 @@ async def create_user_token(user_id: int):
     return {'access_token': token, 'token_type': 'bearer', 'expires': expires}
 
 
-async def get_user_by_email(email: str):
-    query = models.users.select().where(models.users.c.email == email)
+async def get_user_by_username(username: str):
+    query = models.users.select().where(models.users.c.username == username)
     return await database.fetch_one(query)
 
 
@@ -155,8 +162,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     return user
 
 
-async def create_user(email: str, password: str):
-    query = models.users.insert().values(email=email, password=hash_password(password))
+async def create_user(username: str, password: str):
+    query = models.users.insert().values(username=username, password=hash_password(password))
     db_user_id = await database.execute(query)
     token = await create_user_token(db_user_id)
     token_dict = {'access_token': token['access_token'], 'expires': token['expires']}
@@ -178,10 +185,11 @@ async def create_device_for_user(user_id: int, device: dict):
 
 
 async def edit_device_for_user(device: dict):
-    device_id = device.pop('id')
-    device.pop('temp')
-    query = models.devices.update().values(**device).where(models.devices.c.id == device_id)
-    await database.execute(query)
+    if not device['controls_locked']:
+        device_id = device.pop('id')
+        device['temp'] = facked_edit_temperature(device['temperature'], device['temp'])
+        query = models.devices.update().values(**device).where(models.devices.c.id == device_id)
+        await database.execute(query)
 
 
 async def get_all_user_devices(user_id: int):
